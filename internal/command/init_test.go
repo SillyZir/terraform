@@ -4122,22 +4122,20 @@ func TestInit_stateStore_newWorkingDir_basic(t *testing.T) {
 
 		// Check output
 		output := testOutput.All()
-		expectedOutputs := []string{
-			`Initializing provider plugin for state store "test_store"...
+		expectedOutput := `Initializing provider plugin for state store "test_store"...
 - Finding latest version of hashicorp/test...
 - Installing hashicorp/test v1.2.3...
 - Installed hashicorp/test v1.2.3 (verified checksum)
+
+The state store provider was approved automatically.
 
 Initializing the state store "test_store"...
 
 Initializing provider plugins...
 - Reusing previous version of hashicorp/test from the dependency lock file
-- Using previously-installed hashicorp/test v1.2.3`,
-		}
-		for _, expected := range expectedOutputs {
-			if !strings.Contains(output, expected) {
-				t.Fatalf("expected output to include %q, but got:\n%s", expected, output)
-			}
+- Using previously-installed hashicorp/test v1.2.3`
+		if !strings.Contains(output, expectedOutput) {
+			t.Fatalf("expected output to include %q, but got:\n%s", expectedOutput, output)
 		}
 
 		// Assert the default workspace was not created
@@ -4664,6 +4662,7 @@ func TestInit_stateStore_newWorkingDir_interactiveProviderApproval(t *testing.T)
 		output := testOutput.All()
 		expectedOutputs := []string{
 			"The state store provider was rejected",
+			`Error: State store provider "test" (registry.terraform.io/hashicorp/test) was not approved, so init cannot continue.`,
 		}
 		for _, expected := range expectedOutputs {
 			if !strings.Contains(output, expected) {
@@ -4740,6 +4739,7 @@ func TestInit_stateStore_newWorkingDir_interactiveProviderApproval(t *testing.T)
 		output := testOutput.All()
 		expectedOutputs := []string{
 			"The state store provider was rejected",
+			`Error: State store provider "test" (registry.terraform.io/hashicorp/test) was not approved, so init cannot continue.`,
 		}
 		for _, expectedOutput := range expectedOutputs {
 			if !strings.Contains(output, expectedOutput) {
@@ -4849,6 +4849,8 @@ func TestInit_stateStore_versionConstraintChildModule(t *testing.T) {
 - Finding hashicorp/test versions matching "< 2.0.0"...
 - Installing hashicorp/test v1.0.0...
 - Installed hashicorp/test v1.0.0 (verified checksum)
+
+The state store provider was approved automatically.
 
 Initializing the state store "test_store"...
 
