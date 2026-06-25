@@ -215,7 +215,7 @@ func (c *InitCommand) run(initArgs *arguments.Init, view views.Init) int {
 	var pssLocks *depsfile.Locks // May end up containing 0 or 1 lock.
 	if rootModEarly.StateStore != nil {
 		var configProvidersOutput bool
-		var safeInitAction SafeInitAction
+		var safeInstallAction SafeStateStoreProviderInstallAction
 		var stateStoreProviderAuthResult *getproviders.PackageAuthenticationResult
 		var configProviderDiags tfdiags.Diagnostics
 
@@ -242,7 +242,7 @@ Please use \"terraform state migrate -upgrade\" to upgrade the state store provi
 		}
 
 		// Use alteredPreviousLocks, which may contain an additional lock supplied from the -state-provider-lock-file flag
-		configProvidersOutput, pssLocks, safeInitAction, stateStoreProviderAuthResult, configProviderDiags = c.getProvidersFromPSSConfig(ctx, rootModEarly, alteredPreviousLocks, allowUpgrade, initArgs.PluginPath, initArgs.Lockfile, view)
+		configProvidersOutput, pssLocks, safeInstallAction, stateStoreProviderAuthResult, configProviderDiags = c.getProvidersFromPSSConfig(ctx, rootModEarly, alteredPreviousLocks, allowUpgrade, initArgs.PluginPath, initArgs.Lockfile, view)
 		diags = diags.Append(configProviderDiags)
 		if configProviderDiags.HasErrors() {
 			view.PolicyResults(policyResults, nil)
@@ -255,11 +255,11 @@ Please use \"terraform state migrate -upgrade\" to upgrade the state store provi
 			view.Output(views.EmptyMessage)
 		}
 
-		// Course of action depends on the safeInitAction returned from getProvidersFromPSSConfig
-		switch safeInitAction {
-		case SafeInitActionProceed:
+		// Course of action depends on the SafeStateStoreProviderInstallAction returned from getProvidersFromPSSConfig
+		switch safeInstallAction {
+		case Proceed:
 			// do nothing; provider is already trusted and there's no need to notify the user.
-		case SafeInitActionRequireApproval:
+		case RequireApproval:
 			if c.input {
 				// Prompt the user about trusting the provider used for state storage.
 				diags = diags.Append(c.promptStateStorageProviderApproval(rootModEarly.StateStore.ProviderAddr, pssLocks, stateStoreProviderAuthResult))
@@ -285,8 +285,8 @@ Please use \"terraform state migrate -upgrade\" to upgrade the state store provi
 				view.Output(views.StateStoreProviderAutomationApprovedMessage)
 			}
 		default:
-			// Handle SafeInitActionInvalid or unexpected action types
-			panic(fmt.Sprintf("When installing providers described in the config Terraform couldn't determine what 'safe init' action should be taken and returned action type %T. This is a bug in Terraform and should be reported.", safeInitAction))
+			// Handle Invalid or unexpected action types
+			panic(fmt.Sprintf("When installing providers described in the config Terraform couldn't determine what 'safe init' action should be taken and returned action type %T. This is a bug in Terraform and should be reported.", safeInstallAction))
 		}
 
 		// Record how the state store provider is supplied to Terraform
