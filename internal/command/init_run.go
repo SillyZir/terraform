@@ -171,7 +171,7 @@ func (c *InitCommand) run(initArgs *arguments.Init, view views.Init) int {
 
 	policyResults := plans.NewPolicyResults()
 
-	var pssLocks *depsfile.Locks // May end up containing 0 or 1 lock.
+	var pssLock *depsfile.Locks // May end up containing 0 or 1 lock.
 	if rootModEarly.StateStore != nil {
 		var configProvidersOutput bool
 		var safeInitAction SafeInitAction
@@ -221,7 +221,7 @@ Please use \"terraform state migrate -upgrade\" to upgrade the state store provi
 		}
 
 		// Use pssInputLocks, which may contain an additional lock supplied from the -state-provider-lock-file flag
-		configProvidersOutput, pssLocks, safeInitAction, stateStoreProviderAuthResult, configProviderDiags = c.getProvidersFromPSSConfig(ctx, rootModEarly, pssInputLocks, allowUpgrade, initArgs.PluginPath, initArgs.Lockfile, view)
+		configProvidersOutput, pssLock, safeInitAction, stateStoreProviderAuthResult, configProviderDiags = c.getProvidersFromPSSConfig(ctx, rootModEarly, pssInputLocks, allowUpgrade, initArgs.PluginPath, initArgs.Lockfile, view)
 		diags = diags.Append(configProviderDiags)
 		if configProviderDiags.HasErrors() {
 			view.PolicyResults(policyResults, nil)
@@ -241,7 +241,7 @@ Please use \"terraform state migrate -upgrade\" to upgrade the state store provi
 		case SafeInitActionRequireApproval:
 			if c.input {
 				// Prompt the user about trusting the provider used for state storage.
-				diags = diags.Append(c.promptStateStorageProviderApproval(rootModEarly.StateStore.ProviderAddr, pssLocks, stateStoreProviderAuthResult))
+				diags = diags.Append(c.promptStateStorageProviderApproval(rootModEarly.StateStore.ProviderAddr, pssLock, stateStoreProviderAuthResult))
 				if diags.HasErrors() {
 					view.Output(views.StateStoreProviderInteractiveRejectedMessage)
 					view.Diagnostics(diags)
@@ -283,7 +283,7 @@ Please use \"terraform state migrate -upgrade\" to upgrade the state store provi
 	case initArgs.Cloud && rootModEarly.CloudConfig != nil:
 		back, backendOutput, backDiags = c.initCloud(ctx, rootModEarly, initArgs.BackendConfig, initArgs.ViewType, view)
 	case initArgs.Backend:
-		back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, initArgs, pssLocks, view)
+		back, backendOutput, backDiags = c.initBackend(ctx, rootModEarly, initArgs, pssLock, view)
 	default:
 		// load the previously-stored backend config
 		back, backDiags = c.Meta.backendFromState(ctx)
@@ -426,7 +426,7 @@ Please use \"terraform state migrate -upgrade\" to upgrade the state store provi
 	if rootModEarly.StateStore != nil {
 		// Merge locks so that the lock returned from the state store provider download
 		// is authoritative for that provider.
-		previousLocksWithPSSOverride = c.mergeLockedDependencies(pssLocks, previousLocksWithPSSOverride)
+		previousLocksWithPSSOverride = c.mergeLockedDependencies(pssLock, previousLocksWithPSSOverride)
 	}
 	stateProvidersOutput, finalLocks, stateProvidersDiags := c.getProviders(ctx, config, state, initArgs.Upgrade, previousLocksWithPSSOverride, initArgs.PluginPath, view, providerHook)
 	diags = diags.Append(stateProvidersDiags)
@@ -447,7 +447,7 @@ Please use \"terraform state migrate -upgrade\" to upgrade the state store provi
 		// then we override the state store provider lock with the pre-upgrade version.
 		// Even if the upgrade process downloaded a newer version of the provider Terraform
 		// will not use it due to the lock file being unchanged.
-		finalLocks = c.mergeLockedDependencies(pssLocks, finalLocks)
+		finalLocks = c.mergeLockedDependencies(pssLock, finalLocks)
 	}
 	lockFileOutput, lockFileDiags := c.saveDependencyLockFile(previousLocks, finalLocks, initArgs.Lockfile, view)
 	diags = diags.Append(lockFileDiags)
