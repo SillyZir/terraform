@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/hashicorp/terraform/internal/depsfile"
 	"github.com/hashicorp/terraform/internal/tfdiags"
 )
 
@@ -162,7 +163,11 @@ func ParseInit(rawArgs []string, experimentsEnabled bool) (*Init, tfdiags.Diagno
 		))
 	}
 
-	if init.StateStoreProviderLockFile != "" {
+	if init.StateStoreProviderLockFile == "" {
+		// User hasn't supplied a lock file path, so default to .terraform.lock.hcl in the working directory.
+		init.StateStoreProviderLockFile = depsfile.LockFilePath
+	} else {
+		// User did supply the lock file path, so validate it.
 		if init.InputEnabled {
 			diags = diags.Append(tfdiags.Sourceless(
 				tfdiags.Error,

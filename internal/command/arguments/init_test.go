@@ -47,7 +47,7 @@ func TestParseInit_basicValid(t *testing.T) {
 				CompactWarnings:            false,
 				TargetFlags:                nil,
 				EnablePssExperiment:        false,
-				StateStoreProviderLockFile: "",
+				StateStoreProviderLockFile: lockFileName,
 			},
 		},
 		"setting multiple options": {
@@ -83,7 +83,7 @@ func TestParseInit_basicValid(t *testing.T) {
 				CompactWarnings:            true,
 				TargetFlags:                nil,
 				EnablePssExperiment:        false,
-				StateStoreProviderLockFile: "",
+				StateStoreProviderLockFile: lockFileName,
 			},
 		},
 		"with cloud option": {
@@ -113,7 +113,7 @@ func TestParseInit_basicValid(t *testing.T) {
 				CompactWarnings:            false,
 				TargetFlags:                []string{"foo_bar.baz"},
 				EnablePssExperiment:        false,
-				StateStoreProviderLockFile: "",
+				StateStoreProviderLockFile: lockFileName,
 			},
 		},
 	}
