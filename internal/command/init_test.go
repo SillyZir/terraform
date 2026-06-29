@@ -4500,7 +4500,7 @@ func TestInit_stateStore_newWorkingDir_interactiveProviderApproval(t *testing.T)
 		// Allow the test to respond to the pause in provider installation for
 		// checking the state storage provider.
 		inputWriter := testInputMap(t, map[string]string{
-			"approve": "yes",
+			"approve-provider-test-1.2.3": "yes",
 		})
 
 		ui := new(cli.MockUi)
@@ -4645,7 +4645,7 @@ func TestInit_stateStore_newWorkingDir_interactiveProviderApproval(t *testing.T)
 		// Allow the test to respond to the pause in provider installation for
 		// checking the state storage provider.
 		inputWriter := testInputMap(t, map[string]string{
-			"approve": "yes",
+			"approve-provider-test-1.2.3": "yes",
 		})
 
 		ui := new(cli.MockUi)
@@ -4725,7 +4725,7 @@ func TestInit_stateStore_newWorkingDir_interactiveProviderApproval(t *testing.T)
 		// Allow the test to respond to the pause in provider installation for
 		// checking the state storage provider.
 		inputWriter := testInputMap(t, map[string]string{
-			"approve": "no",
+			"approve-provider-test-1.2.3": "no",
 		})
 
 		ui := new(cli.MockUi)
@@ -4822,7 +4822,7 @@ func TestInit_stateStore_newWorkingDir_interactiveProviderApproval(t *testing.T)
 
 		// Init number 1 - reject the provider
 		_ = testInputMap(t, map[string]string{
-			"approve": "no",
+			"approve-provider-test-1.2.3": "no",
 		})
 		args := []string{
 			"-enable-pluggable-state-storage-experiment=true",
@@ -4864,7 +4864,7 @@ func TestInit_stateStore_newWorkingDir_interactiveProviderApproval(t *testing.T)
 
 		// Init number 2 - re-prompted for approval
 		_ = testInputMap(t, map[string]string{
-			"approve": "yes",
+			"approve-provider-test-1.2.3": "yes",
 		})
 		args = []string{
 			"-enable-pluggable-state-storage-experiment=true",
