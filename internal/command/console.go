@@ -117,9 +117,23 @@ func (c *ConsoleCommand) Run(args []string) int {
 	}
 
 	var scope *lang.Scope
+
+	moduleScope := addrs.RootModuleInstance
+
+	// Parse and use the module instance scope, if provided
+	if parsedArgs.Scope != "" {
+		childModule, diags := addrs.ParseModuleInstanceStr(parsedArgs.Scope)
+		if diags.HasErrors() {
+			// TODO: add a nicer error, this means this provided an invalid/unsupported scope
+			c.showDiagnostics(diags)
+			return 1
+		}
+
+		moduleScope = childModule
+	}
 	if parsedArgs.EvalFromPlan {
 		var planDiags tfdiags.Diagnostics
-		_, scope, planDiags = lr.Core.PlanAndEval(lr.Config, lr.InputState, lr.PlanOpts)
+		_, scope, planDiags = lr.Core.PlanAndEval(lr.Config, lr.InputState, lr.PlanOpts, moduleScope)
 		diags = diags.Append(planDiags)
 	} else {
 		evalOpts := &terraform.EvalOpts{}
@@ -134,7 +148,7 @@ func (c *ConsoleCommand) Run(args []string) int {
 		// derived values (input variables, local values, output values)
 		// that are not stored in the persistent state.
 		var scopeDiags tfdiags.Diagnostics
-		scope, scopeDiags = lr.Core.Eval(lr.Config, lr.InputState, addrs.RootModuleInstance, evalOpts)
+		scope, scopeDiags = lr.Core.Eval(lr.Config, lr.InputState, moduleScope, evalOpts)
 		diags = diags.Append(scopeDiags)
 	}
 	if scope == nil {
@@ -200,6 +214,7 @@ func (c *ConsoleCommand) modePiped(session *repl.Session, ui cli.Ui) int {
 	return 0
 }
 
+// TODO: update help text to add scope/mention of root scope as default
 func (c *ConsoleCommand) Help() string {
 	helpText := `
 Usage: terraform [global options] console [options]

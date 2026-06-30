@@ -187,7 +187,7 @@ type PlanOpts struct {
 // by the UI layer to give extra context to support understanding of the
 // returned error messages.
 func (c *Context) Plan(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, tfdiags.Diagnostics) {
-	plan, _, diags := c.PlanAndEval(config, prevRunState, opts)
+	plan, _, diags := c.PlanAndEval(config, prevRunState, opts, addrs.RootModuleInstance)
 	return plan, diags
 }
 
@@ -200,7 +200,7 @@ func (c *Context) Plan(config *configs.Config, prevRunState *states.State, opts 
 // then the scope will always be nil, but it's also possible for the scope
 // to be nil even when the plan isn't, if the plan is not complete enough for
 // the evaluation scope to produce consistent results.
-func (c *Context) PlanAndEval(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, *lang.Scope, tfdiags.Diagnostics) {
+func (c *Context) PlanAndEval(config *configs.Config, prevRunState *states.State, opts *PlanOpts, moduleAddr addrs.ModuleInstance) (*plans.Plan, *lang.Scope, tfdiags.Diagnostics) {
 	defer c.acquireRun("plan")()
 	var diags tfdiags.Diagnostics
 
@@ -349,11 +349,11 @@ The -target option is not for routine use, and is provided only for exceptional 
 	var evalScope *lang.Scope
 	switch opts.Mode {
 	case plans.NormalMode:
-		plan, evalScope, planDiags = c.plan(config, prevRunState, opts)
+		plan, evalScope, planDiags = c.plan(config, prevRunState, opts, moduleAddr)
 	case plans.DestroyMode:
-		plan, evalScope, planDiags = c.destroyPlan(config, prevRunState, opts)
+		plan, evalScope, planDiags = c.destroyPlan(config, prevRunState, opts, moduleAddr)
 	case plans.RefreshOnlyMode:
-		plan, evalScope, planDiags = c.refreshOnlyPlan(config, prevRunState, opts)
+		plan, evalScope, planDiags = c.refreshOnlyPlan(config, prevRunState, opts, moduleAddr)
 	default:
 		panic(fmt.Sprintf("unsupported plan mode %s", opts.Mode))
 	}
@@ -491,26 +491,26 @@ func SimplePlanOpts(mode plans.Mode, setVariables InputValues) *PlanOpts {
 	}
 }
 
-func (c *Context) plan(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, *lang.Scope, tfdiags.Diagnostics) {
+func (c *Context) plan(config *configs.Config, prevRunState *states.State, opts *PlanOpts, moduleAddr addrs.ModuleInstance) (*plans.Plan, *lang.Scope, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	if opts.Mode != plans.NormalMode {
 		panic(fmt.Sprintf("called Context.plan with %s", opts.Mode))
 	}
 
-	plan, evalScope, walkDiags := c.planWalk(config, prevRunState, opts)
+	plan, evalScope, walkDiags := c.planWalk(config, prevRunState, opts, moduleAddr)
 	diags = diags.Append(walkDiags)
 
 	return plan, evalScope, diags
 }
 
-func (c *Context) refreshOnlyPlan(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, *lang.Scope, tfdiags.Diagnostics) {
+func (c *Context) refreshOnlyPlan(config *configs.Config, prevRunState *states.State, opts *PlanOpts, moduleAddr addrs.ModuleInstance) (*plans.Plan, *lang.Scope, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if opts.Mode != plans.RefreshOnlyMode {
 		panic(fmt.Sprintf("called Context.refreshOnlyPlan with %s", opts.Mode))
 	}
 
-	plan, evalScope, walkDiags := c.planWalk(config, prevRunState, opts)
+	plan, evalScope, walkDiags := c.planWalk(config, prevRunState, opts, moduleAddr)
 	diags = diags.Append(walkDiags)
 	if diags.HasErrors() {
 		// Non-nil plan along with errors indicates a non-applyable partial
@@ -547,7 +547,7 @@ func (c *Context) refreshOnlyPlan(config *configs.Config, prevRunState *states.S
 	return plan, evalScope, diags
 }
 
-func (c *Context) destroyPlan(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, *lang.Scope, tfdiags.Diagnostics) {
+func (c *Context) destroyPlan(config *configs.Config, prevRunState *states.State, opts *PlanOpts, moduleAddr addrs.ModuleInstance) (*plans.Plan, *lang.Scope, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 
 	if opts.Mode != plans.DestroyMode {
@@ -580,7 +580,7 @@ func (c *Context) destroyPlan(config *configs.Config, prevRunState *states.State
 		// the destroy plan should take care of refreshing instances itself,
 		// where the special cases of evaluation and skipping condition checks
 		// can be done.
-		refreshPlan, _, refreshDiags := c.plan(config, prevRunState, &refreshOpts)
+		refreshPlan, _, refreshDiags := c.plan(config, prevRunState, &refreshOpts, moduleAddr)
 		if refreshDiags.HasErrors() {
 			// NOTE: Normally we'd append diagnostics regardless of whether
 			// there are errors, just in case there are warnings we'd want to
@@ -610,7 +610,7 @@ func (c *Context) destroyPlan(config *configs.Config, prevRunState *states.State
 		log.Printf("[TRACE] Context.destroyPlan: now _really_ creating a destroy plan")
 	}
 
-	destroyPlan, evalScope, walkDiags := c.planWalk(config, priorState, opts)
+	destroyPlan, evalScope, walkDiags := c.planWalk(config, priorState, opts, moduleAddr)
 	diags = diags.Append(walkDiags)
 	if walkDiags.HasErrors() {
 		// Non-nil plan along with errors indicates a non-applyable partial
@@ -756,7 +756,7 @@ func (c *Context) findForgetTargets(config *configs.Config) (forgetResources []a
 	return forgetResources, forgetModules, diags
 }
 
-func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, opts *PlanOpts) (*plans.Plan, *lang.Scope, tfdiags.Diagnostics) {
+func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, opts *PlanOpts, moduleAddr addrs.ModuleInstance) (*plans.Plan, *lang.Scope, tfdiags.Diagnostics) {
 	var diags tfdiags.Diagnostics
 	log.Printf("[DEBUG] Building and walking plan graph for %s", opts.Mode)
 
@@ -952,7 +952,7 @@ func (c *Context) planWalk(config *configs.Config, prevRunState *states.State, o
 	// The caller also gets access to an expression evaluation scope in the
 	// root module, in case it needs to extract other information using
 	// expressions, like in "terraform console" or the test harness.
-	evalScope := evalScopeFromGraphWalk(walker, addrs.RootModuleInstance)
+	evalScope := evalScopeFromGraphWalk(walker, moduleAddr)
 
 	return plan, evalScope, diags
 }

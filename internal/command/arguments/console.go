@@ -31,6 +31,9 @@ type Console struct {
 
 	// ConfigPath is the path to a directory of Terraform configuration files.
 	ConfigPath string
+
+	// TODO: docs
+	Scope string
 }
 
 // ParseConsole processes CLI arguments, returning a Console value and
@@ -56,6 +59,7 @@ func ParseConsole(args []string) (*Console, tfdiags.Diagnostics) {
 	cmdFlags.BoolVar(&con.EvalFromPlan, "plan", false, "evaluate from plan")
 	cmdFlags.BoolVar(&con.InputEnabled, "input", true, "input")
 	cmdFlags.BoolVar(&con.CompactWarnings, "compact-warnings", false, "compact-warnings")
+	cmdFlags.StringVar(&con.Scope, "scope", "", "module evaluation scope")
 	cmdFlags.Var((*FlagStringSlice)(&con.TargetFlags), "target", "target")
 
 	if err := cmdFlags.Parse(args); err != nil {
