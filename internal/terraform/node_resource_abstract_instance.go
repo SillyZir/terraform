@@ -3142,6 +3142,7 @@ func (n *NodeAbstractResourceInstance) reportDeferredActionTriggers(ctx EvalCont
 					ActionTriggerBlockIndex: blockIdx,
 					ActionsListIndex:        listIdx,
 				},
+				Caller: n.Addr.Resource,
 			}, reason)
 		}
 	}
@@ -3243,6 +3244,7 @@ func (n *NodeAbstractResourceInstance) planActionTrigger(ctx EvalContext, resRep
 			ActionTriggerEvent:      event,
 		},
 		ProviderAddr: actionRef.actionNode.ResolvedProvider,
+		Caller:       n.Addr.Resource,
 	}
 
 	// check if this action was previously deferred
